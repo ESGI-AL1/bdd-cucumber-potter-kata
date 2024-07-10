@@ -1,5 +1,6 @@
 package fr.esgi.pricing.book
 
+import BookPricingCalculator
 import io.cucumber.datatable.DataTable
 import io.cucumber.java.en.And
 import io.cucumber.java.en.Given
@@ -11,6 +12,7 @@ class BookPricingSteps {
     private var allDifferent: Boolean = true
     private val basket = mutableListOf<String>()
     private var appliedDiscount = 0
+    private var calculator = BookPricingCalculator();
 
     @Given("my basket contains:")
     fun myBasketContains(dataTable: DataTable) {
@@ -45,39 +47,7 @@ class BookPricingSteps {
 
     @Then("the basket price should be {float}")
     fun assertBasketPrice(expectedPrice: Float) {
-        val actualPrice = calculateBasketPrice()
+        val actualPrice = calculator.calculateBasketPrice(basket, allDifferent);
         Assertions.assertEquals(expectedPrice, actualPrice, 0.01f)
-    }
-
-    private fun calculateBasketPrice(): Float {
-        val bookCounts = basket.groupingBy { it }.eachCount()
-
-        fun calculateSetPrice(size: Int): Float = when (size) {
-            0 -> 0f
-            1 -> 8f
-            2 -> 2 * 8f * 0.95f
-            3 -> 3 * 8f * 0.90f
-            4 -> 4 * 8f * 0.80f
-            5 -> 5 * 8f * 0.75f
-            else -> throw IllegalArgumentException()
-        }
-
-        fun getOptimalPricing(remainingBooks: Map<String, Int>): Float {
-            if (remainingBooks.isEmpty()) return 0f
-
-            return if (allDifferent) {
-                calculateSetPrice(remainingBooks.size)
-            } else {
-                (1..minOf(5, remainingBooks.size)).minOf { setSize ->
-                    val set = remainingBooks.entries.sortedByDescending { it.value }.take(setSize)
-                    val newRemaining = remainingBooks.mapValues { (book, count) ->
-                        count - if (set.any { it.key == book }) 1 else 0
-                    }.filter { it.value > 0 }
-
-                    calculateSetPrice(setSize) + getOptimalPricing(newRemaining)
-                }
-            }
-        }
-        return getOptimalPricing(bookCounts)
     }
 }
